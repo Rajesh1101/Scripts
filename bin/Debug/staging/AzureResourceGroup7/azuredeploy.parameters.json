@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armsaType": {
+      "value": "Standard_LRS"
+    },
+    "armvmName": {
+      "value": "armvm10"
+    },
+    "armvmAdminUserName": {
+      "value": "arvmvm10"
+    },
+    "armvmUbuntuOSVersion": {
+      "value": "14.04.2-LTS"
+    },
+    "armpipDnsName": {
+      "value": "arm10"
+    },
+    "_artifactsLocation": {
+      "value": null
+    },
+    "_artifactsLocationSasToken": {
+      "value": null
+    },
+    "armniName": {
+      "value": "armviname"
+    },
+    "armWvmName": {
+      "value": "armwvm2name"
+    },
+    "armWvmAdminUserName": {
+      "value": "admin1"
+    },
+    "armWniName": {
+      "value": "armwnivame"
+    },
+    "armWvm2Name": {
+      "value": "armwvm2name"
+    },
+    "armWvm2AdminUserName": {
+      "value": "admin2"
+    },
+    "armWipDnsName": {
+      "value": "armdns"
+    },
+    "testName": {
+      "value": "test"
+    },
+    "testAdminUserName": {
+      "value": "test"
+    }
+  }
+}

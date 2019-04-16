@@ -1,0 +1,213 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "testType": {
+      "type": "string",
+      "defaultValue": "Standard_LRS",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_ZRS",
+        "Standard_GRS",
+        "Standard_RAGRS",
+        "Premium_LRS"
+      ]
+    },
+    "testName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "testAdminUserName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "testAdminPassword": {
+      "type": "securestring"
+    },
+    "testUbuntuOSVersion": {
+      "type": "string",
+      "defaultValue": "14.04.2-LTS",
+      "allowedValues": [
+        "12.04.5-LTS",
+        "14.04.2-LTS"
+      ]
+    },
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "description": "Auto-generated container in staging storage account to receive post-build staging folder upload"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Auto-generated token to access _artifactsLocation"
+      }
+    }
+  },
+  "variables": {
+    "comment": "Azure QuickStarts",
+    "testPrefix": "10.0.0.0/16",
+    "testSubnet1Name": "Subnet-1",
+    "testSubnet1Prefix": "10.0.0.0/24",
+    "testSubnet2Name": "Subnet-2",
+    "testSubnet2Prefix": "10.0.1.0/24",
+    "testName": "[concat('test', uniqueString(resourceGroup().id))]",
+    "testImagePublisher": "Canonical",
+    "testImageOffer": "UbuntuServer",
+    "testOSDiskName": "testOSDisk",
+    "testVmSize": "Standard_D2_v2",
+    "testVnetID": "[resourceId('Microsoft.Network/virtualNetworks', 'test')]",
+    "testSubnetRef": "[concat(variables('testVnetID'), '/subnets/', variables('testSubnet1Name'))]",
+    "testStorageAccountContainerName": "vhds",
+    "testNicName": "[concat(parameters('testName'), 'NetworkInterface')]",
+    "deployScriptFolder": "CustomScripts",
+    "deployScriptFileName": "deploy.sh"
+  },
+  "resources": [
+    {
+      "name": "test",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [],
+      "tags": {
+        "displayName": "test"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('testPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('testSubnet1Name')]",
+            "properties": {
+              "addressPrefix": "[variables('testSubnet1Prefix')]"
+            }
+          },
+          {
+            "name": "[variables('testSubnet2Name')]",
+            "properties": {
+              "addressPrefix": "[variables('testSubnet2Prefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('testName')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-01-01",
+      "sku": {
+        "name": "[parameters('testType')]"
+      },
+      "dependsOn": [],
+      "tags": {
+        "displayName": "test"
+      },
+      "kind": "Storage"
+    },
+    {
+      "name": "[variables('testNicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', 'test')]"
+      ],
+      "tags": {
+        "displayName": "testNic"
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('testSubnetRef')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[parameters('testName')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('testName'))]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('testNicName'))]"
+      ],
+      "tags": {
+        "displayName": "test"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('testVmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('testName')]",
+          "adminUsername": "[parameters('testAdminUsername')]",
+          "adminPassword": "[parameters('testAdminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "[variables('testImagePublisher')]",
+            "offer": "[variables('testImageOffer')]",
+            "sku": "[parameters('testUbuntuOSVersion')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "testOSDisk",
+            "vhd": {
+              "uri": "[concat(reference(resourceId('Microsoft.Storage/storageAccounts', variables('testName')), '2016-01-01').primaryEndpoints.blob, variables('testStorageAccountContainerName'), '/', variables('testOSDiskName'), '.vhd')]"
+            },
+            "caching": "ReadWrite",
+            "createOption": "FromImage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('testNicName'))]"
+            }
+          ]
+        }
+      },
+      "resources": [
+        {
+          "name": "deploy",
+          "type": "extensions",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2016-03-30",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', parameters('testName'))]"
+          ],
+          "tags": {
+            "displayName": "deploy"
+          },
+          "properties": {
+            "publisher": "Microsoft.OSTCExtensions",
+            "type": "CustomScriptForLinux",
+            "typeHandlerVersion": "1.4",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "fileUris": [
+                "[concat(parameters('_artifactsLocation'), '/', variables('deployScriptFolder'), '/', variables('deployScriptFileName'), parameters('_artifactsLocationSasToken'))]"
+              ],
+              "commandToExecute": "[concat('sh ', variables('deployScriptFileName'))]"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "outputs": {
+  }
+}
